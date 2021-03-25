@@ -16,30 +16,40 @@ type post struct {
 	Body   string `json:"body"`
 }
 
-func handleError(err error) {
-	if err != nil {
-		log.Fatal(err)
+func main() {
+	concurrentGet()
+}
+
+func concurrentGet() {
+	url := "https://jsonplaceholder.typicode.com/posts"
+	ch := make(chan post)
+	posts := []post{}
+	for i := 1; i <= 100; i++ {
+		go makeRequest(url, ch, i)
+		posts = append(posts, <-ch)
+	}
+
+	for _, pst := range posts {
+		fmt.Println(pst)
 	}
 }
 
-func main() {
-	url := "https://jsonplaceholder.typicode.com/posts"
+func makeRequest(url string, ch chan post, i int) {
+	url += fmt.Sprintf("/%v", i)
 	spaceClient := http.Client{
 		Timeout: time.Second * 2,
 	}
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	handleError(err)
-
-	res, getErr := spaceClient.Do(req)
-	handleError(getErr)
-	posts := []post{}
-	jsonFile, readErr := ioutil.ReadAll(res.Body)
-	handleError(readErr)
-	jsonErr := json.Unmarshal(jsonFile, &posts)
+	request, _ := http.NewRequest(http.MethodGet, url, nil)
+	response, _ := spaceClient.Do(request)
+	jsonFile, _ := ioutil.ReadAll(response.Body)
+	pst := post{}
+	jsonErr := json.Unmarshal(jsonFile, &pst)
 	handleError(jsonErr)
-	for _, elem := range posts {
-		data, err := json.MarshalIndent(elem, "", "\t")
-		handleError(err)
-		fmt.Println(string(data))
+	ch <- pst
+}
+
+func handleError(err error) {
+	if err != nil {
+		log.Fatal(err)
 	}
 }
